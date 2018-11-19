@@ -16,14 +16,16 @@
 
 package java.io;
 
-import com.google.gwt.corp.localstorage.LocalStorage;
+import java.nio.channels.FileChannel;
+
+import com.google.gwt.storage.client.Storage;
 
 /** Saves binary data to the local storage; currently using hex encoding. The string is prefixed with "hex:"
  * @author haustein */
 public class RandomAccessFile /* implements DataOutput, DataInput, Closeable */{
-
+	
 /*
- * public final FileDescriptor getFD() throws IOException { } public final FileChannel getChannel() { }
+ * public final FileDescriptor getFD() throws IOException { }
  */
 	final String name;
 	final boolean writeable;
@@ -33,6 +35,7 @@ public class RandomAccessFile /* implements DataOutput, DataInput, Closeable */{
 	StringBuilder newData;
 	int pos;
 	int len;
+	
 	DataInputStream dis = new DataInputStream(new RafInputStream());
 	DataOutputStream dos = new DataOutputStream(new RafOutputStream());
 
@@ -49,12 +52,8 @@ public class RandomAccessFile /* implements DataOutput, DataInput, Closeable */{
 		}
 		writeable = mode.equals("rw");
 		if (file.exists()) {
-			try {
-				data = atob(LocalStorage.getItem(name));
-				len = data.length();
-			} catch (IOException e) {
-				throw new FileNotFoundException("" + e);
-			}
+			data = atob(File.LocalStorage.getItem(name));
+			len = data.length();
 		} else if (writeable) {
 			data = "";
 			dirty = true;
@@ -149,7 +148,7 @@ public class RandomAccessFile /* implements DataOutput, DataInput, Closeable */{
 		}
 	}
 
-	private void consolidate () {
+	void consolidate () {
 		if (newData == null) {
 			return;
 		}
@@ -176,7 +175,7 @@ public class RandomAccessFile /* implements DataOutput, DataInput, Closeable */{
 			return;
 		}
 		consolidate();
-		LocalStorage.setItem(name, btoa(data));
+		File.LocalStorage.setItem(name, btoa(data));
 		dirty = false;
 	}
 
@@ -272,7 +271,7 @@ public class RandomAccessFile /* implements DataOutput, DataInput, Closeable */{
 		dos.writeUTF(str);
 	}
 
-// public final FileChannel getChannel() throws IOException { }
+	public final FileChannel getChannel() throws IOException { return null; }
 
 	class RafInputStream extends InputStream {
 		@Override

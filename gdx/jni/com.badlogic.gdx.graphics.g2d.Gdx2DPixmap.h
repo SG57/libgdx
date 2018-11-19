@@ -30,10 +30,10 @@ extern "C" {
 /*
  * Class:     com_badlogic_gdx_graphics_g2d_Gdx2DPixmap
  * Method:    load
- * Signature: ([J[BIII)Ljava/nio/ByteBuffer;
+ * Signature: ([J[BII)Ljava/nio/ByteBuffer;
  */
 JNIEXPORT jobject JNICALL Java_com_badlogic_gdx_graphics_g2d_Gdx2DPixmap_load
-  (JNIEnv *, jclass, jlongArray, jbyteArray, jint, jint, jint);
+  (JNIEnv *, jclass, jlongArray, jbyteArray, jint, jint);
 
 /*
  * Class:     com_badlogic_gdx_graphics_g2d_Gdx2DPixmap
@@ -117,6 +117,14 @@ JNIEXPORT void JNICALL Java_com_badlogic_gdx_graphics_g2d_Gdx2DPixmap_fillCircle
 
 /*
  * Class:     com_badlogic_gdx_graphics_g2d_Gdx2DPixmap
+ * Method:    fillTriangle
+ * Signature: (JIIIIIII)V
+ */
+JNIEXPORT void JNICALL Java_com_badlogic_gdx_graphics_g2d_Gdx2DPixmap_fillTriangle
+  (JNIEnv *, jclass, jlong, jint, jint, jint, jint, jint, jint, jint);
+
+/*
+ * Class:     com_badlogic_gdx_graphics_g2d_Gdx2DPixmap
  * Method:    drawPixmap
  * Signature: (JJIIIIIIII)V
  */
@@ -126,18 +134,18 @@ JNIEXPORT void JNICALL Java_com_badlogic_gdx_graphics_g2d_Gdx2DPixmap_drawPixmap
 /*
  * Class:     com_badlogic_gdx_graphics_g2d_Gdx2DPixmap
  * Method:    setBlend
- * Signature: (I)V
+ * Signature: (JI)V
  */
 JNIEXPORT void JNICALL Java_com_badlogic_gdx_graphics_g2d_Gdx2DPixmap_setBlend
-  (JNIEnv *, jclass, jint);
+  (JNIEnv *, jclass, jlong, jint);
 
 /*
  * Class:     com_badlogic_gdx_graphics_g2d_Gdx2DPixmap
  * Method:    setScale
- * Signature: (I)V
+ * Signature: (JI)V
  */
 JNIEXPORT void JNICALL Java_com_badlogic_gdx_graphics_g2d_Gdx2DPixmap_setScale
-  (JNIEnv *, jclass, jint);
+  (JNIEnv *, jclass, jlong, jint);
 
 /*
  * Class:     com_badlogic_gdx_graphics_g2d_Gdx2DPixmap

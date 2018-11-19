@@ -13,14 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
+
 package com.badlogic.gdx.tests;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL10;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.PolygonRegion;
+import com.badlogic.gdx.graphics.g2d.PolygonRegionLoader;
 import com.badlogic.gdx.graphics.g2d.PolygonSprite;
 import com.badlogic.gdx.graphics.g2d.PolygonSpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -32,11 +34,6 @@ import com.badlogic.gdx.tests.utils.GdxTest;
 import com.badlogic.gdx.utils.Array;
 
 public class PolygonSpriteTest extends GdxTest {
-
-	@Override
-	public boolean needsGL20 () {
-		return false;
-	}
 
 	PolygonSpriteBatch batch;
 	ShapeRenderer renderer;
@@ -51,7 +48,9 @@ public class PolygonSpriteTest extends GdxTest {
 	@Override
 	public void create () {
 		texture = new Texture(Gdx.files.internal("data/tree.png"));
-		region = new PolygonRegion(new TextureRegion(texture), Gdx.files.internal("data/tree.psh"));
+
+		PolygonRegionLoader loader = new PolygonRegionLoader();
+		region = loader.load(new TextureRegion(texture), Gdx.files.internal("data/tree.psh"));
 
 		renderer = new ShapeRenderer();
 
@@ -73,12 +72,10 @@ public class PolygonSpriteTest extends GdxTest {
 
 	@Override
 	public void render () {
-		GL10 gl = Gdx.gl10;
-
-		Gdx.gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
+		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		Gdx.gl.glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 
-		camera.apply(Gdx.gl10);
+		camera.update();
 		batch.setProjectionMatrix(camera.combined);
 
 		batch.begin();

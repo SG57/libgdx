@@ -13,17 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
+
 package com.badlogic.gdx.scenes.scene2d.ui;
 
-import com.esotericsoftware.tablelayout.Cell;
-
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.scenes.scene2d.ui.Label.LabelStyle;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle;
-import com.badlogic.gdx.scenes.scene2d.utils.Align;
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
+import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
 
 /** A button with a child {@link Image} and {@link Label}.
@@ -33,7 +32,7 @@ import com.badlogic.gdx.utils.Scaling;
  * @author Nathan Sweet */
 public class ImageTextButton extends Button {
 	private final Image image;
-	private final Label label;
+	private Label label;
 	private ImageTextButtonStyle style;
 
 	public ImageTextButton (String text, Skin skin) {
@@ -54,14 +53,16 @@ public class ImageTextButton extends Button {
 
 		image = new Image();
 		image.setScaling(Scaling.fit);
-		add(image);
 
 		label = new Label(text, new LabelStyle(style.font, style.fontColor));
 		label.setAlignment(Align.center);
+
+		add(image);
 		add(label);
 
-		setWidth(getPrefWidth());
-		setHeight(getPrefHeight());
+		setStyle(style);
+
+		setSize(getPrefWidth(), getPrefHeight());
 	}
 
 	public void setStyle (ButtonStyle style) {
@@ -82,24 +83,26 @@ public class ImageTextButton extends Button {
 		return style;
 	}
 
-	private void updateImage () {
-		boolean isPressed = isPressed();
-		if (isDisabled && style.imageDisabled != null)
-			image.setDrawable(style.imageDisabled);
-		else if (isPressed && style.imageDown != null)
-			image.setDrawable(style.imageDown);
+	/** Updates the Image with the appropriate Drawable from the style before it is drawn. */
+	protected void updateImage () {
+		Drawable drawable = null;
+		if (isDisabled() && style.imageDisabled != null)
+			drawable = style.imageDisabled;
+		else if (isPressed() && style.imageDown != null)
+			drawable = style.imageDown;
 		else if (isChecked && style.imageChecked != null)
-			image.setDrawable((style.imageCheckedOver != null && isOver()) ? style.imageCheckedOver : style.imageChecked);
+			drawable = (style.imageCheckedOver != null && isOver()) ? style.imageCheckedOver : style.imageChecked;
 		else if (isOver() && style.imageOver != null)
-			image.setDrawable(style.imageOver);
+			drawable = style.imageOver;
 		else if (style.imageUp != null) //
-			image.setDrawable(style.imageUp);
+			drawable = style.imageUp;
+		image.setDrawable(drawable);
 	}
 
-	public void draw (SpriteBatch batch, float parentAlpha) {
+	public void draw (Batch batch, float parentAlpha) {
 		updateImage();
 		Color fontColor;
-		if (isDisabled && style.disabledFontColor != null)
+		if (isDisabled() && style.disabledFontColor != null)
 			fontColor = style.disabledFontColor;
 		else if (isPressed() && style.downFontColor != null)
 			fontColor = style.downFontColor;
@@ -121,6 +124,11 @@ public class ImageTextButton extends Button {
 		return getCell(image);
 	}
 
+	public void setLabel (Label label) {
+		getLabelCell().setActor(label);
+		this.label = label;
+	}
+
 	public Label getLabel () {
 		return label;
 	}
@@ -129,7 +137,7 @@ public class ImageTextButton extends Button {
 		return getCell(label);
 	}
 
-	public void setText (String text) {
+	public void setText (CharSequence text) {
 		label.setText(text);
 	}
 
@@ -152,19 +160,16 @@ public class ImageTextButton extends Button {
 
 		public ImageTextButtonStyle (ImageTextButtonStyle style) {
 			super(style);
-			this.font = style.font;
-			if (style.fontColor != null) this.fontColor = new Color(style.fontColor);
-			if (style.downFontColor != null) this.downFontColor = new Color(style.downFontColor);
-			if (style.overFontColor != null) this.overFontColor = new Color(style.overFontColor);
-			if (style.checkedFontColor != null) this.checkedFontColor = new Color(style.checkedFontColor);
-			if (style.checkedOverFontColor != null) this.checkedOverFontColor = new Color(style.checkedOverFontColor);
-			if (style.disabledFontColor != null) this.disabledFontColor = new Color(style.disabledFontColor);
 			if (style.imageUp != null) this.imageUp = style.imageUp;
 			if (style.imageDown != null) this.imageDown = style.imageDown;
 			if (style.imageOver != null) this.imageOver = style.imageOver;
 			if (style.imageChecked != null) this.imageChecked = style.imageChecked;
 			if (style.imageCheckedOver != null) this.imageCheckedOver = style.imageCheckedOver;
 			if (style.imageDisabled != null) this.imageDisabled = style.imageDisabled;
+		}
+
+		public ImageTextButtonStyle (TextButtonStyle style) {
+			super(style);
 		}
 	}
 }

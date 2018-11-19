@@ -17,22 +17,15 @@
 package com.badlogic.gdx.graphics.glutils;
 
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.GL11;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.utils.BufferUtils;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 
 /** <p>
- * In IndexBufferObject wraps OpenGL's index buffer functionality to be used in conjunction with VBOs. This class can be
- * seamlessly used with OpenGL ES 1.x and 2.0.
- * </p>
- * 
- * <p>
- * Uses indirect Buffers on Android 1.5/1.6 to fix GC invocation due to leaking PlatformAddress instances.
+ * IndexBufferObject wraps OpenGL's index buffer functionality to be used in conjunction with VBOs. 
  * </p>
  * 
  * <p>
@@ -47,10 +40,8 @@ import com.badlogic.gdx.utils.GdxRuntimeException;
  * 
  * @author mzechner */
 public class IndexBufferObjectSubData implements IndexData {
-	final static IntBuffer tmpHandle = BufferUtils.newIntBuffer(1);
-
-	ShortBuffer buffer;
-	ByteBuffer byteBuffer;
+	final ShortBuffer buffer;
+	final ByteBuffer byteBuffer;
 	int bufferHandle;
 	final boolean isDirect;
 	boolean isDirty = true;
@@ -62,16 +53,10 @@ public class IndexBufferObjectSubData implements IndexData {
 	 * @param isStatic whether the index buffer is static
 	 * @param maxIndices the maximum number of indices this buffer can hold */
 	public IndexBufferObjectSubData (boolean isStatic, int maxIndices) {
-// if (Gdx.app.getType() == ApplicationType.Android
-// && Gdx.app.getVersion() < 5) {
-// byteBuffer = ByteBuffer.allocate(maxIndices * 2);
-// byteBuffer.order(ByteOrder.nativeOrder());
-// isDirect = false;
-// } else {
 		byteBuffer = BufferUtils.newByteBuffer(maxIndices * 2);
 		isDirect = true;
-// }
-		usage = isStatic ? GL11.GL_STATIC_DRAW : GL11.GL_DYNAMIC_DRAW;
+
+		usage = isStatic ? GL20.GL_STATIC_DRAW : GL20.GL_DYNAMIC_DRAW;
 		buffer = byteBuffer.asShortBuffer();
 		buffer.flip();
 		byteBuffer.flip();
@@ -85,7 +70,7 @@ public class IndexBufferObjectSubData implements IndexData {
 		byteBuffer = BufferUtils.newByteBuffer(maxIndices * 2);
 		this.isDirect = true;
 
-		usage = GL11.GL_STATIC_DRAW;
+		usage = GL20.GL_STATIC_DRAW;
 		buffer = byteBuffer.asShortBuffer();
 		buffer.flip();
 		byteBuffer.flip();
@@ -93,21 +78,11 @@ public class IndexBufferObjectSubData implements IndexData {
 	}
 
 	private int createBufferObject () {
-		if (Gdx.gl20 != null) {
-			Gdx.gl20.glGenBuffers(1, tmpHandle);
-			Gdx.gl20.glBindBuffer(GL20.GL_ELEMENT_ARRAY_BUFFER, tmpHandle.get(0));
-			Gdx.gl20.glBufferData(GL20.GL_ELEMENT_ARRAY_BUFFER, byteBuffer.capacity(), null, usage);
-			Gdx.gl20.glBindBuffer(GL20.GL_ELEMENT_ARRAY_BUFFER, 0);
-			return tmpHandle.get(0);
-		} else if (Gdx.gl11 != null) {
-			Gdx.gl11.glGenBuffers(1, tmpHandle);
-			Gdx.gl11.glBindBuffer(GL11.GL_ELEMENT_ARRAY_BUFFER, tmpHandle.get(0));
-			Gdx.gl11.glBufferData(GL11.GL_ELEMENT_ARRAY_BUFFER, byteBuffer.capacity(), null, usage);
-			Gdx.gl11.glBindBuffer(GL11.GL_ELEMENT_ARRAY_BUFFER, 0);
-			return tmpHandle.get(0);
-		}
-
-		return 0;
+		int result = Gdx.gl20.glGenBuffer();
+		Gdx.gl20.glBindBuffer(GL20.GL_ELEMENT_ARRAY_BUFFER, result);
+		Gdx.gl20.glBufferData(GL20.GL_ELEMENT_ARRAY_BUFFER, byteBuffer.capacity(), null, usage);
+		Gdx.gl20.glBindBuffer(GL20.GL_ELEMENT_ARRAY_BUFFER, 0);
+		return result;
 	}
 
 	/** @return the number of indices currently stored in this buffer */
@@ -141,22 +116,43 @@ public class IndexBufferObjectSubData implements IndexData {
 		byteBuffer.limit(count << 1);
 
 		if (isBound) {
-			if (Gdx.gl11 != null) {
-				GL11 gl = Gdx.gl11;
-// gl.glBufferData(GL11.GL_ELEMENT_ARRAY_BUFFER, byteBuffer
-// .limit(), byteBuffer, usage);
-				gl.glBufferSubData(GL11.GL_ELEMENT_ARRAY_BUFFER, 0, byteBuffer.limit(), byteBuffer);
-			} else if (Gdx.gl11 != null) {
-				GL20 gl = Gdx.gl20;
-// gl.glBufferData(GL20.GL_ELEMENT_ARRAY_BUFFER, byteBuffer
-// .limit(), byteBuffer, usage);
-				gl.glBufferSubData(GL20.GL_ELEMENT_ARRAY_BUFFER, 0, byteBuffer.limit(), byteBuffer);
-
-			}
+			Gdx.gl20.glBufferSubData(GL20.GL_ELEMENT_ARRAY_BUFFER, 0, byteBuffer.limit(), byteBuffer);
 			isDirty = false;
 		}
 	}
 
+	public void setIndices (ShortBuffer indices) {
+		int pos = indices.position();
+		isDirty = true;
+		buffer.clear();
+		buffer.put(indices);
+		buffer.flip();
+		indices.position(pos);
+		byteBuffer.position(0);
+		byteBuffer.limit(buffer.limit() << 1);
+		
+		if (isBound) {
+			Gdx.gl20.glBufferSubData(GL20.GL_ELEMENT_ARRAY_BUFFER, 0, byteBuffer.limit(), byteBuffer);
+			isDirty = false;
+		}
+	}
+
+	@Override
+	public void updateIndices (int targetOffset, short[] indices, int offset, int count) {
+		isDirty = true;
+		final int pos = byteBuffer.position();
+		byteBuffer.position(targetOffset * 2);
+		BufferUtils.copy(indices, offset, byteBuffer, count);
+		byteBuffer.position(pos);
+		buffer.position(0);
+
+		if (isBound) {
+			Gdx.gl20.glBufferSubData(GL20.GL_ELEMENT_ARRAY_BUFFER, 0, byteBuffer.limit(), byteBuffer);
+			isDirty = false;
+		}
+	}
+
+	
 	/** <p>
 	 * Returns the underlying ShortBuffer. If you modify the buffer contents they wil be uploaded on the call to {@link #bind()}.
 	 * If you need immediate uploading use {@link #setIndices(short[], int, int)}.
@@ -170,39 +166,20 @@ public class IndexBufferObjectSubData implements IndexData {
 
 	/** Binds this IndexBufferObject for rendering with glDrawElements. */
 	public void bind () {
-		if (bufferHandle == 0) throw new GdxRuntimeException("buuh");
+		if (bufferHandle == 0) throw new GdxRuntimeException("IndexBufferObject cannot be used after it has been disposed.");
 
-		if (Gdx.gl11 != null) {
-			GL11 gl = Gdx.gl11;
-			gl.glBindBuffer(GL11.GL_ELEMENT_ARRAY_BUFFER, bufferHandle);
-			if (isDirty) {
-// gl.glBufferData(GL11.GL_ELEMENT_ARRAY_BUFFER, byteBuffer
-// .limit(), byteBuffer, usage);
-				byteBuffer.limit(buffer.limit() * 2);
-				gl.glBufferSubData(GL11.GL_ELEMENT_ARRAY_BUFFER, 0, byteBuffer.limit(), byteBuffer);
-				isDirty = false;
-			}
-		} else {
-			GL20 gl = Gdx.gl20;
-			gl.glBindBuffer(GL20.GL_ELEMENT_ARRAY_BUFFER, bufferHandle);
-			if (isDirty) {
-// gl.glBufferData(GL20.GL_ELEMENT_ARRAY_BUFFER, byteBuffer
-// .limit(), byteBuffer, usage);
-				byteBuffer.limit(buffer.limit() * 2);
-				gl.glBufferSubData(GL20.GL_ELEMENT_ARRAY_BUFFER, 0, byteBuffer.limit(), byteBuffer);
-				isDirty = false;
-			}
+		Gdx.gl20.glBindBuffer(GL20.GL_ELEMENT_ARRAY_BUFFER, bufferHandle);
+		if (isDirty) {
+			byteBuffer.limit(buffer.limit() * 2);
+			Gdx.gl20.glBufferSubData(GL20.GL_ELEMENT_ARRAY_BUFFER, 0, byteBuffer.limit(), byteBuffer);
+			isDirty = false;
 		}
 		isBound = true;
 	}
 
 	/** Unbinds this IndexBufferObject. */
 	public void unbind () {
-		if (Gdx.gl11 != null) {
-			Gdx.gl11.glBindBuffer(GL11.GL_ELEMENT_ARRAY_BUFFER, 0);
-		} else if (Gdx.gl20 != null) {
-			Gdx.gl20.glBindBuffer(GL11.GL_ELEMENT_ARRAY_BUFFER, 0);
-		}
+		Gdx.gl20.glBindBuffer(GL20.GL_ELEMENT_ARRAY_BUFFER, 0);
 		isBound = false;
 	}
 
@@ -214,22 +191,9 @@ public class IndexBufferObjectSubData implements IndexData {
 
 	/** Disposes this IndexBufferObject and all its associated OpenGL resources. */
 	public void dispose () {
-		if (Gdx.gl20 != null) {
-			tmpHandle.clear();
-			tmpHandle.put(bufferHandle);
-			tmpHandle.flip();
-			GL20 gl = Gdx.gl20;
-			gl.glBindBuffer(GL20.GL_ELEMENT_ARRAY_BUFFER, 0);
-			gl.glDeleteBuffers(1, tmpHandle);
-			bufferHandle = 0;
-		} else if (Gdx.gl11 != null) {
-			tmpHandle.clear();
-			tmpHandle.put(bufferHandle);
-			tmpHandle.flip();
-			GL11 gl = Gdx.gl11;
-			gl.glBindBuffer(GL11.GL_ELEMENT_ARRAY_BUFFER, 0);
-			gl.glDeleteBuffers(1, tmpHandle);
-			bufferHandle = 0;
-		}
+		GL20 gl = Gdx.gl20;
+		gl.glBindBuffer(GL20.GL_ELEMENT_ARRAY_BUFFER, 0);
+		gl.glDeleteBuffer(bufferHandle);
+		bufferHandle = 0;
 	}
 }

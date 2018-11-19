@@ -32,12 +32,14 @@
 		<exclude name="target/"/>
 				<include name="**/*.cpp"/>
 
-		
+				<exclude name="android/**"/>
+		<exclude name="iosgl/**"/>
+
 	</fileset>
 
 	<!-- define linker and options -->
 	<property name="linker" value="${compilerPrefix}g++${compilerSuffix}"/>
-	<property name="linker-opts" value="-Wl,--kill-at -shared -static-libgcc -static-libstdc++ -m64"/>
+	<property name="linker-opts" value="-Wl,--kill-at -shared -static -static-libgcc -static-libstdc++ -m64"/>
 	<property name="libraries" value=""/>
 	
 	<!-- cleans the build directory, removes all object files and shared libs -->

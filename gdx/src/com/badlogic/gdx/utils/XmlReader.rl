@@ -43,31 +43,46 @@ public class XmlReader {
 		return parse(data, 0, data.length);
 	}
 
-	public Element parse (Reader reader) throws IOException {
-		char[] data = new char[1024];
-		int offset = 0;
-		while (true) {
-			int length = reader.read(data, offset, data.length - offset);
-			if (length == -1) break;
-			if (length == 0) {
-				char[] newData = new char[data.length * 2];
-				System.arraycopy(data, 0, newData, 0, data.length);
-				data = newData;
-			} else
-				offset += length;
-		}
-		return parse(data, 0, offset);
-	}
-
-	public Element parse (InputStream input) throws IOException {
-		return parse(new InputStreamReader(input, "ISO-8859-1"));
-	}
-
-	public Element parse (FileHandle file) throws IOException {
+	public Element parse (Reader reader) {
 		try {
-			return parse(file.read());
+			char[] data = new char[1024];
+			int offset = 0;
+			while (true) {
+				int length = reader.read(data, offset, data.length - offset);
+				if (length == -1) break;
+				if (length == 0) {
+					char[] newData = new char[data.length * 2];
+					System.arraycopy(data, 0, newData, 0, data.length);
+					data = newData;
+				} else
+					offset += length;
+			}
+			return parse(data, 0, offset);
+		} catch (IOException ex) {
+			throw new SerializationException(ex);
+		} finally {
+			StreamUtils.closeQuietly(reader);
+		}
+	}
+
+	public Element parse (InputStream input) {
+		try {
+			return parse(new InputStreamReader(input, "UTF-8"));
+		} catch (IOException ex) {
+			throw new SerializationException(ex);
+		} finally {
+			StreamUtils.closeQuietly(input);
+		}
+	}
+
+	public Element parse (FileHandle file) {
+		InputStream is = null;
+		try {
+			return parse(file.reader("UTF-8"));
 		} catch (Exception ex) {
 			throw new SerializationException("Error parsing file: " + file, ex);
+		} finally {
+			StreamUtils.closeQuietly(is);
 		}
 	}
 
@@ -99,6 +114,11 @@ public class XmlReader {
 					while (data[p - 2] != ']' || data[p - 1] != ']' || data[p] != '>')
 						p++;
 					text(new String(data, s, p - s - 2));
+				} else if (c == '!' && data[s + 1] == '-' && data[s + 2] == '-') {
+					p = s + 3;
+					while (data[p] != '-' || data[p + 1] != '-' || data[p + 2] != '>')
+						p++;
+					p += 2;
 				} else
 					while (data[p] != '>') p++;
 				fgoto elementBody;
@@ -209,6 +229,7 @@ public class XmlReader {
 		if (name.equals("amp")) return "&";
 		if (name.equals("apos")) return "'";
 		if (name.equals("quot")) return "\"";
+		if (name.startsWith("#x")) return Character.toString((char)Integer.parseInt(name.substring(2), 16));
 		return null;
 	}
 
@@ -244,9 +265,9 @@ public class XmlReader {
 
 		/** @throws GdxRuntimeException if the attribute was not found. */
 		public String getAttribute (String name) {
-			if (attributes == null) throw new GdxRuntimeException("Element " + name + " doesn't have attribute: " + name);
+			if (attributes == null) throw new GdxRuntimeException("Element " + this.name + " doesn't have attribute: " + name);
 			String value = attributes.get(name);
-			if (value == null) throw new GdxRuntimeException("Element " + name + " doesn't have attribute: " + name);
+			if (value == null) throw new GdxRuntimeException("Element " + this.name + " doesn't have attribute: " + name);
 			return value;
 		}
 
@@ -255,6 +276,11 @@ public class XmlReader {
 			String value = attributes.get(name);
 			if (value == null) return defaultValue;
 			return value;
+		}
+
+		public boolean hasAttribute (String name) {
+			if (attributes == null) return false;
+			return attributes.containsKey(name);
 		}
 
 		public void setAttribute (String name, String value) {
@@ -268,9 +294,9 @@ public class XmlReader {
 		}
 
 		/** @throws GdxRuntimeException if the element has no children. */
-		public Element getChild (int i) {
+		public Element getChild (int index) {
 			if (children == null) throw new GdxRuntimeException("Element has no children: " + name);
-			return children.get(i);
+			return children.get(index);
 		}
 
 		public void addChild (Element element) {
@@ -355,6 +381,11 @@ public class XmlReader {
 			return null;
 		}
 
+		public boolean hasChild (String name) {
+			if (children == null) return false;
+			return getChildByName(name) != null;
+		}
+
 		/** @param name the name of the child {@link Element}
 		 * @return the first child having the given name or null, recurses */
 		public Element getChildByNameRecursive (String name) {
@@ -366,6 +397,11 @@ public class XmlReader {
 				if (found != null) return found;
 			}
 			return null;
+		}
+
+		public boolean hasChildRecursive (String name) {
+			if (children == null) return false;
+			return getChildByNameRecursive(name) != null;
 		}
 
 		/** @param name the name of the children

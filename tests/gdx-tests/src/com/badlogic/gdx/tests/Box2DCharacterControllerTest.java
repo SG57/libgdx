@@ -16,13 +16,11 @@
 
 package com.badlogic.gdx.tests;
 
-import java.util.List;
-
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Input.Keys;
-import com.badlogic.gdx.graphics.GL10;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -185,7 +183,7 @@ public class Box2DCharacterControllerTest extends GdxTest implements Application
 
 	@Override
 	public void render () {
-		Gdx.gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
+		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		cam.position.set(player.getPosition().x, player.getPosition().y, 0);
 		cam.update();
 		renderer.render(world, cam.combined);
@@ -237,7 +235,7 @@ public class Box2DCharacterControllerTest extends GdxTest implements Application
 		}
 
 		// since Box2D 2.2 we need to reset the friction of any existing contacts
-		List<Contact> contacts = world.getContactList();
+		Array<Contact> contacts = world.getContactList();
 		for (int i = 0; i < world.getContactCount(); i++) {
 			Contact contact = contacts.get(i);
 			contact.resetFriction();
@@ -282,15 +280,14 @@ public class Box2DCharacterControllerTest extends GdxTest implements Application
 
 		cam.project(point.set(pos.x, pos.y, 0));
 		batch.begin();
-		font.drawMultiLine(batch, "friction: " + playerPhysicsFixture.getFriction() + "\ngrounded: " + grounded, point.x + 20,
-			point.y);
+		font.draw(batch, "friction: " + playerPhysicsFixture.getFriction() + "\ngrounded: " + grounded, point.x + 20, point.y);
 		batch.end();
 	}
 
 	private boolean isPlayerGrounded (float deltaTime) {
 		groundedPlatform = null;
-		List<Contact> contactList = world.getContactList();
-		for (int i = 0; i < contactList.size(); i++) {
+		Array<Contact> contactList = world.getContactList();
+		for (int i = 0; i < contactList.size; i++) {
 			Contact contact = contactList.get(i);
 			if (contact.isTouching()
 				&& (contact.getFixtureA() == playerSensorFixture || contact.getFixtureB() == playerSensorFixture)) {

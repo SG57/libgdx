@@ -16,13 +16,13 @@
 
 package com.badlogic.gdx.graphics;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.g2d.Gdx2DPixmap;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.GdxRuntimeException;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /** <p>
  * A Pixmap represents an image in memory. It has a width and height expressed in pixels as well as a {@link Format} specifying
@@ -69,6 +69,14 @@ public class Pixmap implements Disposable {
 			if (format == Gdx2DPixmap.GDX2D_FORMAT_RGBA8888) return RGBA8888;
 			throw new GdxRuntimeException("Unknown Gdx2DPixmap Format: " + format);
 		}
+		
+		public static int toGlFormat (Format format) {
+			return Gdx2DPixmap.toGlFormat(toGdx2DPixmapFormat(format));
+		}
+		
+		public static int toGlType (Format format) {
+			return Gdx2DPixmap.toGlType(toGdx2DPixmapFormat(format));
+		}
 	}
 
 	/** Blending functions to be set with {@link Pixmap#setBlending}.
@@ -84,8 +92,8 @@ public class Pixmap implements Disposable {
 		NearestNeighbour, BiLinear
 	}
 
-	/** global blending state **/
-	private static Blending blending = Blending.SourceOver;
+	private Blending blending = Blending.SourceOver;
+	private Filter filter = Filter.BiLinear;
 
 	final Gdx2DPixmap pixmap;
 	int color = 0;
@@ -94,16 +102,17 @@ public class Pixmap implements Disposable {
 
 	/** Sets the type of {@link Blending} to be used for all operations. Default is {@link Blending#SourceOver}.
 	 * @param blending the blending type */
-	public static void setBlending (Blending blending) {
-		Pixmap.blending = blending;
-		Gdx2DPixmap.setBlend(blending == Blending.None ? 0 : 1);
+	public void setBlending (Blending blending) {
+		this.blending = blending;
+		pixmap.setBlend(blending == Blending.None ? 0 : 1);
 	}
 
 	/** Sets the type of interpolation {@link Filter} to be used in conjunction with
 	 * {@link Pixmap#drawPixmap(Pixmap, int, int, int, int, int, int, int, int)}.
 	 * @param filter the filter. */
-	public static void setFilter (Filter filter) {
-		Gdx2DPixmap.setScale(filter == Filter.NearestNeighbour ? Gdx2DPixmap.GDX2D_SCALE_NEAREST : Gdx2DPixmap.GDX2D_SCALE_LINEAR);
+	public void setFilter (Filter filter) {
+		this.filter = filter;
+		pixmap.setScale(filter == Filter.NearestNeighbour ? Gdx2DPixmap.GDX2D_SCALE_NEAREST : Gdx2DPixmap.GDX2D_SCALE_LINEAR);
 	}
 
 	/** Creates a new Pixmap instance with the given width, height and format.
@@ -202,7 +211,7 @@ public class Pixmap implements Disposable {
 		pixmap.drawRect(x, y, width, height, color);
 	}
 
-	/** Draws an area form another Pixmap to this Pixmap.
+	/** Draws an area from another Pixmap to this Pixmap.
 	 * 
 	 * @param pixmap The other Pixmap
 	 * @param x The target x-coordinate (top left corner)
@@ -211,28 +220,28 @@ public class Pixmap implements Disposable {
 		drawPixmap(pixmap, x, y, 0, 0, pixmap.getWidth(), pixmap.getHeight());
 	}
 
-	/** Draws an area form another Pixmap to this Pixmap.
+	/** Draws an area from another Pixmap to this Pixmap.
 	 * 
 	 * @param pixmap The other Pixmap
 	 * @param x The target x-coordinate (top left corner)
 	 * @param y The target y-coordinate (top left corner)
 	 * @param srcx The source x-coordinate (top left corner)
 	 * @param srcy The source y-coordinate (top left corner);
-	 * @param srcWidth The width of the area form the other Pixmap in pixels
-	 * @param srcHeight The height of the area form the other Pixmap in pixles */
+	 * @param srcWidth The width of the area from the other Pixmap in pixels
+	 * @param srcHeight The height of the area from the other Pixmap in pixels */
 	public void drawPixmap (Pixmap pixmap, int x, int y, int srcx, int srcy, int srcWidth, int srcHeight) {
 		this.pixmap.drawPixmap(pixmap.pixmap, srcx, srcy, x, y, srcWidth, srcHeight);
 	}
 
-	/** Draws an area form another Pixmap to this Pixmap. This will automatically scale and stretch the source image to the
+	/** Draws an area from another Pixmap to this Pixmap. This will automatically scale and stretch the source image to the
 	 * specified target rectangle. Use {@link Pixmap#setFilter(Filter)} to specify the type of filtering to be used (nearest
 	 * neighbour or bilinear).
 	 * 
 	 * @param pixmap The other Pixmap
 	 * @param srcx The source x-coordinate (top left corner)
 	 * @param srcy The source y-coordinate (top left corner);
-	 * @param srcWidth The width of the area form the other Pixmap in pixels
-	 * @param srcHeight The height of the area form the other Pixmap in pixles
+	 * @param srcWidth The width of the area from the other Pixmap in pixels
+	 * @param srcHeight The height of the area from the other Pixmap in pixels
 	 * @param dstx The target x-coordinate (top left corner)
 	 * @param dsty The target y-coordinate (top left corner)
 	 * @param dstWidth The target width
@@ -271,6 +280,18 @@ public class Pixmap implements Disposable {
 		pixmap.fillCircle(x, y, radius, color);
 	}
 
+	/** Fills a triangle with vertices at x1,y1 and x2,y2 and x3,y3 using the current color.
+	 * 
+	 * @param x1 The x-coordinate of vertex 1
+	 * @param y1 The y-coordinate of vertex 1
+	 * @param x2 The x-coordinate of vertex 2
+	 * @param y2 The y-coordinate of vertex 2
+	 * @param x3 The x-coordinate of vertex 3
+	 * @param y3 The y-coordinate of vertex 3 */
+	public void fillTriangle (int x1, int y1, int x2, int y2, int x3, int y3) {
+		pixmap.fillTriangle(x1, y1, x2, y2, x3, y3, color);
+	}
+
 	/** Returns the 32-bit RGBA8888 value of the pixel at x, y. For Alpha formats the RGB components will be one.
 	 * 
 	 * @param x The x-coordinate
@@ -297,6 +318,10 @@ public class Pixmap implements Disposable {
 		disposed = true;
 	}
 
+	public boolean isDisposed () {
+		return disposed;
+	}
+
 	/** Draws a pixel at the given location with the current color.
 	 * 
 	 * @param x the x-coordinate
@@ -315,21 +340,21 @@ public class Pixmap implements Disposable {
 	}
 
 	/** Returns the OpenGL ES format of this Pixmap. Used as the seventh parameter to
-	 * {@link GLCommon#glTexImage2D(int, int, int, int, int, int, int, int, java.nio.Buffer)}.
+	 * {@link GL20#glTexImage2D(int, int, int, int, int, int, int, int, java.nio.Buffer)}.
 	 * @return one of GL_ALPHA, GL_RGB, GL_RGBA, GL_LUMINANCE, or GL_LUMINANCE_ALPHA. */
 	public int getGLFormat () {
 		return pixmap.getGLFormat();
 	}
 
 	/** Returns the OpenGL ES format of this Pixmap. Used as the third parameter to
-	 * {@link GLCommon#glTexImage2D(int, int, int, int, int, int, int, int, java.nio.Buffer)}.
+	 * {@link GL20#glTexImage2D(int, int, int, int, int, int, int, int, java.nio.Buffer)}.
 	 * @return one of GL_ALPHA, GL_RGB, GL_RGBA, GL_LUMINANCE, or GL_LUMINANCE_ALPHA. */
 	public int getGLInternalFormat () {
 		return pixmap.getGLInternalFormat();
 	}
 
 	/** Returns the OpenGL ES type of this Pixmap. Used as the eighth parameter to
-	 * {@link GLCommon#glTexImage2D(int, int, int, int, int, int, int, int, java.nio.Buffer)}.
+	 * {@link GL20#glTexImage2D(int, int, int, int, int, int, int, int, java.nio.Buffer)}.
 	 * @return one of GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT_5_6_5, GL_UNSIGNED_SHORT_4_4_4_4 */
 	public int getGLType () {
 		return pixmap.getGLType();
@@ -351,7 +376,12 @@ public class Pixmap implements Disposable {
 	}
 
 	/** @return the currently set {@link Blending} */
-	public static Blending getBlending () {
+	public Blending getBlending () {
 		return blending;
+	}
+	
+	/** @return the currently set {@link Filter} */
+	public Filter getFilter (){
+		return filter;
 	}
 }

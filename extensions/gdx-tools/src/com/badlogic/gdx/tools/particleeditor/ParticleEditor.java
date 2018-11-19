@@ -16,29 +16,16 @@
 
 package com.badlogic.gdx.tools.particleeditor;
 
-import java.awt.BorderLayout;
-import java.awt.Component;
-import java.awt.EventQueue;
-import java.awt.Graphics;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
+import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.util.HashMap;
 
-import javax.swing.BorderFactory;
-import javax.swing.ImageIcon;
-import javax.swing.JComponent;
-import javax.swing.JFrame;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JSplitPane;
-import javax.swing.UIManager;
+import javax.swing.*;
 import javax.swing.UIManager.LookAndFeelInfo;
 import javax.swing.border.CompoundBorder;
 import javax.swing.plaf.basic.BasicSplitPaneUI;
@@ -49,19 +36,25 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.backends.lwjgl.LwjglCanvas;
 import com.badlogic.gdx.files.FileHandle;
-import com.badlogic.gdx.graphics.GL10;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.ParticleEffect;
 import com.badlogic.gdx.graphics.g2d.ParticleEmitter;
+import com.badlogic.gdx.graphics.g2d.ParticleEmitter.GradientColorValue;
 import com.badlogic.gdx.graphics.g2d.ParticleEmitter.NumericValue;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 
 public class ParticleEditor extends JFrame {
+	public static final String DEFAULT_PARTICLE = "particle.png";
+
+	public static final String DEFAULT_PREMULT_PARTICLE = "pre_particle.png";
+
 	LwjglCanvas lwjglCanvas;
 	JPanel rowsPanel;
 	JPanel editRowsPanel;
@@ -71,17 +64,20 @@ public class ParticleEditor extends JFrame {
 	OrthographicCamera textCamera;
 	NumericValue pixelsPerMeter;
 	NumericValue zoomLevel;
+	NumericValue deltaMultiplier;
+	GradientColorValue backgroundColor;
 
 	float pixelsPerMeterPrev;
 	float zoomLevelPrev;
 
 	ParticleEffect effect = new ParticleEffect();
+	File effectFile;
 	final HashMap<ParticleEmitter, ParticleData> particleData = new HashMap();
 
 	public ParticleEditor () {
 		super("Particle Editor");
 
-		lwjglCanvas = new LwjglCanvas(new Renderer(), false);
+		lwjglCanvas = new LwjglCanvas(new Renderer());
 		addWindowListener(new WindowAdapter() {
 			public void windowClosed (WindowEvent event) {
 				System.exit(0);
@@ -103,10 +99,12 @@ public class ParticleEditor extends JFrame {
 				editRowsPanel.removeAll();
 				addEditorRow(new NumericPanel(pixelsPerMeter, "Pixels per meter", ""));
 				addEditorRow(new NumericPanel(zoomLevel, "Zoom level", ""));
+				addEditorRow(new NumericPanel(deltaMultiplier, "Delta multiplier", ""));
+				addEditorRow(new GradientPanel(backgroundColor, "Background color", "", true));
 
 				rowsPanel.removeAll();
 				ParticleEmitter emitter = getEmitter();
-				addRow(new ImagePanel(ParticleEditor.this, "Image", ""));
+				addRow(new ImagePanel(ParticleEditor.this, "Images", ""));
 				addRow(new CountPanel(ParticleEditor.this, "Count",
 					"Min number of particles at all times, max number of particles allowed."));
 				addRow(new RangedNumericPanel(emitter.getDelay(), "Delay",
@@ -126,13 +124,14 @@ public class ParticleEditor extends JFrame {
 					"Width of the spawn shape, in world units."));
 				addRow(new ScaledNumericPanel(emitter.getSpawnHeight(), "Duration", "Spawn Height",
 					"Height of the spawn shape, in world units."));
-				addRow(new ScaledNumericPanel(emitter.getScale(), "Life", "Size", "Particle size, in world units."));
+				addRow(new ScaledNumericPanel(emitter.getXScale(), "Life", "X Size", "Particle x size, in world units. If Y Size is not active, this also controls the y size"));
+				addRow(new ScaledNumericPanel(emitter.getYScale(), "Life", "Y Size", "Particle y size, in world units."));
 				addRow(new ScaledNumericPanel(emitter.getVelocity(), "Life", "Velocity", "Particle speed, in world units per second."));
 				addRow(new ScaledNumericPanel(emitter.getAngle(), "Life", "Angle", "Particle emission angle, in degrees."));
 				addRow(new ScaledNumericPanel(emitter.getRotation(), "Life", "Rotation", "Particle rotation, in degrees."));
 				addRow(new ScaledNumericPanel(emitter.getWind(), "Life", "Wind", "Wind strength, in world units per second."));
 				addRow(new ScaledNumericPanel(emitter.getGravity(), "Life", "Gravity", "Gravity strength, in world units per second."));
-				addRow(new GradientPanel(emitter.getTint(), "Tint", ""));
+				addRow(new GradientPanel(emitter.getTint(), "Tint", "", false));
 				addRow(new PercentagePanel(emitter.getTransparency(), "Life", "Transparency", ""));
 				addRow(new OptionsPanel(ParticleEditor.this, "Options", ""));
 				for (Component component : rowsPanel.getComponents())
@@ -161,34 +160,6 @@ public class ParticleEditor extends JFrame {
 
 	public ParticleEmitter getEmitter () {
 		return effect.getEmitters().get(effectPanel.editIndex);
-	}
-
-	public ImageIcon getIcon (ParticleEmitter emitter) {
-		ParticleData data = particleData.get(emitter);
-		if (data == null) particleData.put(emitter, data = new ParticleData());
-		String imagePath = emitter.getImagePath();
-		if (data.icon == null && imagePath != null) {
-			try {
-				URL url;
-				File file = new File(imagePath);
-				if (file.exists())
-					url = file.toURI().toURL();
-				else {
-					url = ParticleEditor.class.getResource(imagePath);
-					if (url == null) return null;
-				}
-				data.icon = new ImageIcon(url);
-			} catch (MalformedURLException ex) {
-				ex.printStackTrace();
-			}
-		}
-		return data.icon;
-	}
-
-	public void setIcon (ParticleEmitter emitters, ImageIcon icon) {
-		ParticleData data = particleData.get(emitters);
-		if (data == null) particleData.put(emitters, data = new ParticleData());
-		data.icon = icon;
 	}
 
 	public void setEnabled (ParticleEmitter emitter, boolean enabled) {
@@ -276,13 +247,13 @@ public class ParticleEditor extends JFrame {
 			splitPane.add(leftSplit, JSplitPane.LEFT);
 			{
 				JPanel spacer = new JPanel(new BorderLayout());
-				leftSplit.add(spacer, JSplitPane.TOP);
+				leftSplit.add(spacer, JSplitPane.BOTTOM);
 				spacer.add(lwjglCanvas.getCanvas());
 				spacer.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 4));
 			}
 			{
 				JPanel emittersPanel = new JPanel(new BorderLayout());
-				leftSplit.add(emittersPanel, JSplitPane.BOTTOM);
+				leftSplit.add(emittersPanel, JSplitPane.TOP);
 				emittersPanel.setBorder(new CompoundBorder(BorderFactory.createEmptyBorder(0, 6, 6, 0), BorderFactory
 					.createTitledBorder("Effect Emitters")));
 				{
@@ -290,7 +261,7 @@ public class ParticleEditor extends JFrame {
 					emittersPanel.add(effectPanel);
 				}
 			}
-			leftSplit.setDividerLocation(625);
+			leftSplit.setDividerLocation(575);
 		}
 		splitPane.setDividerLocation(325);
 	}
@@ -308,8 +279,6 @@ public class ParticleEditor extends JFrame {
 		public void create () {
 			if (spriteBatch != null) return;
 
-			Texture.setEnforcePotImages(false);
-
 			spriteBatch = new SpriteBatch();
 
 			worldCamera = new OrthographicCamera();
@@ -323,9 +292,16 @@ public class ParticleEditor extends JFrame {
 			zoomLevel.setValue(1.0f);
 			zoomLevel.setAlwaysActive(true);
 
+			deltaMultiplier = new NumericValue();
+			deltaMultiplier.setValue(1.0f);
+			deltaMultiplier.setAlwaysActive(true);
+
+			backgroundColor = new GradientColorValue();
+			backgroundColor.setColors(new float[] {0f, 0f, 0f});
+
 			font = new BitmapFont(Gdx.files.getFileHandle("default.fnt", FileType.Internal), Gdx.files.getFileHandle("default.png",
 				FileType.Internal), true);
-			effectPanel.newEmitter("Untitled", true);
+			effectPanel.newExampleEmitter("Untitled", true);
 			// if (resources.openFile("/editor-bg.png") != null) bgImage = new Image(gl, "/editor-bg.png");
 			Gdx.input.setInputProcessor(this);
 		}
@@ -350,9 +326,11 @@ public class ParticleEditor extends JFrame {
 			int viewWidth = Gdx.graphics.getWidth();
 			int viewHeight = Gdx.graphics.getHeight();
 
-			float delta = Gdx.graphics.getDeltaTime();
+			float delta = Math.max(0, Gdx.graphics.getDeltaTime() * deltaMultiplier.getValue());
 
-			Gdx.gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
+			float[] colors = backgroundColor.getColors();
+			Gdx.gl.glClearColor(colors[0], colors[1], colors[2], 1.0f);
+			Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
 			if ((pixelsPerMeter.getValue() != pixelsPerMeterPrev) || (zoomLevel.getValue() != zoomLevelPrev)) {
 				if (pixelsPerMeter.getValue() <= 0) {
@@ -371,7 +349,7 @@ public class ParticleEditor extends JFrame {
 
 			spriteBatch.begin();
 			spriteBatch.enableBlending();
-			spriteBatch.setBlendFunction(GL10.GL_SRC_ALPHA, GL10.GL_ONE_MINUS_SRC_ALPHA);
+			spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
 
 			if (bgImage != null) {
 				bgImage.setPosition(viewWidth / 2 - bgImage.getWidth() / 2, viewHeight / 2 - bgImage.getHeight() / 2);
@@ -381,10 +359,10 @@ public class ParticleEditor extends JFrame {
 			activeCount = 0;
 			boolean complete = true;
 			for (ParticleEmitter emitter : effect.getEmitters()) {
-				if (emitter.getSprite() == null && emitter.getImagePath() != null) loadImage(emitter);
+				if (emitter.getSprites().size == 0 && emitter.getImagePaths().size > 0) loadImages(emitter);
 				boolean enabled = isEnabled(emitter);
 				if (enabled) {
-					if (emitter.getSprite() != null) emitter.draw(spriteBatch, delta);
+					if (emitter.getSprites().size > 0) emitter.draw(spriteBatch, delta);
 					activeCount += emitter.getActiveCount();
 					if (!emitter.isComplete()) complete = false;
 				}
@@ -417,24 +395,40 @@ public class ParticleEditor extends JFrame {
 			// 1);
 		}
 
-		private void loadImage (ParticleEmitter emitter) {
-			final String imagePath = emitter.getImagePath();
-			String imageName = new File(imagePath.replace('\\', '/')).getName();
+		private void loadImages (ParticleEmitter emitter) {
+			String imagePath = null;
 			try {
-				FileHandle file;
-				if (imagePath.equals("particle.png"))
-					file = Gdx.files.classpath(imagePath);
-				else
-					file = Gdx.files.absolute(imagePath);
-				emitter.setSprite(new Sprite(new Texture(file)));
+				Array<Sprite> sprites = new Array<Sprite>();
+				Array<String> imagePaths = emitter.getImagePaths();
+				for (int i = 0; i < imagePaths.size; i++) {
+					imagePath = imagePaths.get(i);
+					String imageName = new File(imagePath.replace('\\', '/')).getName();
+					FileHandle file;
+					if (imagePath.equals(ParticleEditor.DEFAULT_PARTICLE) || imagePath.equals(ParticleEditor.DEFAULT_PREMULT_PARTICLE)) {
+						file = Gdx.files.classpath(imagePath);
+					} else {
+						if ((imagePath.contains("/") || imagePath.contains("\\")) && !imageName.contains("..")) {
+							file = Gdx.files.absolute(imagePath);
+							if (!file.exists()) {
+								// try to use image in effect directory
+								file = Gdx.files.absolute(new File(effectFile.getParentFile(), imageName).getAbsolutePath());
+							}
+						} else {
+							file = Gdx.files.absolute(new File(effectFile.getParentFile(), imagePath).getAbsolutePath());
+						}
+					}
+					sprites.add(new Sprite(new Texture(file)));
+				}
+				emitter.setSprites(sprites);
 			} catch (GdxRuntimeException ex) {
 				ex.printStackTrace();
+				final String imagePathFinal = imagePath;
 				EventQueue.invokeLater(new Runnable() {
 					public void run () {
-						JOptionPane.showMessageDialog(ParticleEditor.this, "Error loading image:\n" + imagePath);
+						JOptionPane.showMessageDialog(ParticleEditor.this, "Error loading image:\n" + imagePathFinal);
 					}
 				});
-				emitter.setImagePath(null);
+				emitter.getImagePaths().clear();
 			}
 		}
 
@@ -495,8 +489,6 @@ public class ParticleEditor extends JFrame {
 	}
 
 	static class ParticleData {
-		public ImageIcon icon;
-		public String imagePath;
 		public boolean enabled = true;
 	}
 

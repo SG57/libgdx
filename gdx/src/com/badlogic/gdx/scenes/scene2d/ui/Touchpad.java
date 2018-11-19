@@ -13,15 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
+
 package com.badlogic.gdx.scenes.scene2d.ui;
 
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.Circle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener.ChangeEvent;
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
 import com.badlogic.gdx.utils.Pools;
@@ -37,6 +39,7 @@ import com.badlogic.gdx.utils.Pools;
 public class Touchpad extends Widget {
 	private TouchpadStyle style;
 	boolean touched;
+	boolean resetOnTouchUp = true;
 	private float deadzoneRadius;
 	private final Circle knobBounds = new Circle(0, 0, 0);
 	private final Circle touchBounds = new Circle(0, 0, 0);
@@ -62,8 +65,7 @@ public class Touchpad extends Widget {
 		knobPosition.set(getWidth() / 2f, getHeight() / 2f);
 
 		setStyle(style);
-		setWidth(getPrefWidth());
-		setHeight(getPrefHeight());
+		setSize(getPrefWidth(), getPrefHeight());
 
 		addListener(new InputListener() {
 			@Override
@@ -82,7 +84,7 @@ public class Touchpad extends Widget {
 			@Override
 			public void touchUp (InputEvent event, float x, float y, int pointer, int button) {
 				touched = false;
-				calculatePositionAndValue(x, y, true);
+				calculatePositionAndValue(x, y, resetOnTouchUp);
 			}
 		});
 	}
@@ -132,6 +134,8 @@ public class Touchpad extends Widget {
 
 	@Override
 	public Actor hit (float x, float y, boolean touchable) {
+		if (touchable && this.getTouchable() != Touchable.enabled) return null;
+		if (!isVisible()) return null;
 		return touchBounds.contains(x, y) ? this : null;
 	}
 
@@ -151,7 +155,7 @@ public class Touchpad extends Widget {
 	}
 
 	@Override
-	public void draw (SpriteBatch batch, float parentAlpha) {
+	public void draw (Batch batch, float parentAlpha) {
 		validate();
 
 		Color c = getColor();
@@ -185,6 +189,15 @@ public class Touchpad extends Widget {
 
 	public boolean isTouched () {
 		return touched;
+	}
+
+	public boolean getResetOnTouchUp () {
+		return resetOnTouchUp;
+	}
+
+	/** @param reset Whether to reset the knob to the center on touch up. */
+	public void setResetOnTouchUp (boolean reset) {
+		this.resetOnTouchUp = reset;
 	}
 
 	/** @param deadzoneRadius The distance in pixels from the center of the touchpad required for the knob to be moved. */

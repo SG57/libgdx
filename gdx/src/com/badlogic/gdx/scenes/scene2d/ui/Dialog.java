@@ -18,8 +18,10 @@ package com.badlogic.gdx.scenes.scene2d.ui;
 
 import static com.badlogic.gdx.scenes.scene2d.actions.Actions.*;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.math.Interpolation;
+import com.badlogic.gdx.scenes.scene2d.Action;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Group;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
@@ -31,22 +33,21 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.FocusListener;
 import com.badlogic.gdx.utils.ObjectMap;
+import com.badlogic.gdx.utils.viewport.Viewport;
 
 /** Displays a dialog, which is a modal window containing a content table with a button table underneath it. Methods are provided
  * to add a label to the content table and buttons to the button table, but any widgets can be added. When a button is clicked,
  * {@link #result(Object)} is called and the dialog is removed from the stage.
  * @author Nathan Sweet */
 public class Dialog extends Window {
-	/** The time in seconds that dialogs will fade in and out. Set to zero to disable fading. */
-	static public float fadeDuration = 0.4f;
-
 	Table contentTable, buttonTable;
 	private Skin skin;
 	ObjectMap<Actor, Object> values = new ObjectMap();
 	boolean cancelHide;
 	Actor previousKeyboardFocus, previousScrollFocus;
+	FocusListener focusListener;
 
-	InputListener ignoreTouchDown = new InputListener() {
+	protected InputListener ignoreTouchDown = new InputListener() {
 		public boolean touchDown (InputEvent event, float x, float y, int pointer, int button) {
 			event.cancel();
 			return false;
@@ -55,12 +56,14 @@ public class Dialog extends Window {
 
 	public Dialog (String title, Skin skin) {
 		super(title, skin.get(WindowStyle.class));
+		setSkin(skin);
 		this.skin = skin;
 		initialize();
 	}
 
 	public Dialog (String title, Skin skin, String windowStyleName) {
 		super(title, skin.get(windowStyleName, WindowStyle.class));
+		setSkin(skin);
 		this.skin = skin;
 		initialize();
 	}
@@ -76,7 +79,7 @@ public class Dialog extends Window {
 		defaults().space(6);
 		add(contentTable = new Table(skin)).expand().fill();
 		row();
-		add(buttonTable = new Table(skin));
+		add(buttonTable = new Table(skin)).fillX();
 
 		contentTable.defaults().space(6);
 		buttonTable.defaults().space(6);
@@ -92,7 +95,7 @@ public class Dialog extends Window {
 			}
 		});
 
-		addListener(new FocusListener() {
+		focusListener = new FocusListener() {
 			public void keyboardFocusChanged (FocusEvent event, Actor actor, boolean focused) {
 				if (!focused) focusChanged(event);
 			}
@@ -106,10 +109,20 @@ public class Dialog extends Window {
 				if (isModal && stage != null && stage.getRoot().getChildren().size > 0
 					&& stage.getRoot().getChildren().peek() == Dialog.this) { // Dialog is top most actor.
 					Actor newFocusedActor = event.getRelatedActor();
-					if (newFocusedActor == null || !newFocusedActor.isDescendantOf(Dialog.this)) event.cancel();
+					if (newFocusedActor != null && !newFocusedActor.isDescendantOf(Dialog.this)
+						&& !(newFocusedActor.equals(previousKeyboardFocus) || newFocusedActor.equals(previousScrollFocus)))
+						event.cancel();
 				}
 			}
-		});
+		};
+	}
+
+	protected void setStage (Stage stage) {
+		if (stage == null)
+			addListener(focusListener);
+		else
+			removeListener(focusListener);
+		super.setStage(stage);
 	}
 
 	public Table getContentTable () {
@@ -138,8 +151,8 @@ public class Dialog extends Window {
 		return this;
 	}
 
-	/** Adds a text button to the button table. Null will be passed to {@link #result(Object)} if this button is clicked. The dialog
-	 * must have been constructed with a skin to use this method. */
+	/** Adds a text button to the button table. Null will be passed to {@link #result(Object)} if this button is clicked. The
+	 * dialog must have been constructed with a skin to use this method. */
 	public Dialog button (String text) {
 		return button(text, null);
 	}
@@ -171,46 +184,67 @@ public class Dialog extends Window {
 		return this;
 	}
 
-	/** {@link #pack() Packs} the dialog and adds it to the stage, centered. */
-	public Dialog show (Stage stage) {
+	/** {@link #pack() Packs} the dialog (but doesn't set the position), adds it to the stage, sets it as the keyboard and scroll
+	 * focus, clears any actions on the dialog, and adds the specified action to it. The previous keyboard and scroll focus are
+	 * remembered so they can be restored when the dialog is hidden.
+	 * @param action May be null. */
+	public Dialog show (Stage stage, Action action) {
 		clearActions();
 		removeCaptureListener(ignoreTouchDown);
-		previousKeyboardFocus = stage.getKeyboardFocus();
-		previousScrollFocus = stage.getScrollFocus();
+
+		previousKeyboardFocus = null;
+		Actor actor = stage.getKeyboardFocus();
+		if (actor != null && !actor.isDescendantOf(this)) previousKeyboardFocus = actor;
+
+		previousScrollFocus = null;
+		actor = stage.getScrollFocus();
+		if (actor != null && !actor.isDescendantOf(this)) previousScrollFocus = actor;
+
 		pack();
-		setPosition(Math.round((stage.getWidth() - getWidth()) / 2), Math.round((stage.getHeight() - getHeight()) / 2));
 		stage.addActor(this);
+		stage.cancelTouchFocus();
 		stage.setKeyboardFocus(this);
 		stage.setScrollFocus(this);
-		if (fadeDuration > 0) {
-			getColor().a = 0;
-			addAction(Actions.fadeIn(fadeDuration, Interpolation.fade));
-		}
+		if (action != null) addAction(action);
+
 		return this;
 	}
 
-	/** Hides the dialog. Called automatically when a button is clicked. The default implementation fades out the dialog over
-	 * {@link #fadeDuration} seconds and then removes it from the stage. */
-	public void hide () {
-		if (fadeDuration > 0) {
+	/** Centers the dialog in the stage and calls {@link #show(Stage, Action)} with a {@link Actions#fadeIn(float, Interpolation)}
+	 * action. */
+	public Dialog show (Stage stage) {
+		show(stage, sequence(Actions.alpha(0), Actions.fadeIn(0.4f, Interpolation.fade)));
+		setPosition(Math.round((stage.getWidth() - getWidth()) / 2), Math.round((stage.getHeight() - getHeight()) / 2));
+		return this;
+	}
+
+	/** Removes the dialog from the stage, restoring the previous keyboard and scroll focus, and adds the specified action to the
+	 * dialog.
+	 * @param action If null, the dialog is removed immediately. Otherwise, the dialog is removed when the action completes. The
+	 *           dialog will not respond to touch down events during the action. */
+	public void hide (Action action) {
+		Stage stage = getStage();
+		if (stage != null) {
+			removeListener(focusListener);
+			if (previousKeyboardFocus != null && previousKeyboardFocus.getStage() == null) previousKeyboardFocus = null;
+			Actor actor = stage.getKeyboardFocus();
+			if (actor == null || actor.isDescendantOf(this)) stage.setKeyboardFocus(previousKeyboardFocus);
+
+			if (previousScrollFocus != null && previousScrollFocus.getStage() == null) previousScrollFocus = null;
+			actor = stage.getScrollFocus();
+			if (actor == null || actor.isDescendantOf(this)) stage.setScrollFocus(previousScrollFocus);
+		}
+		if (action != null) {
 			addCaptureListener(ignoreTouchDown);
-			addAction(sequence(fadeOut(fadeDuration, Interpolation.fade), Actions.removeListener(ignoreTouchDown, true),
-				Actions.removeActor()));
+			addAction(sequence(action, Actions.removeListener(ignoreTouchDown, true), Actions.removeActor()));
 		} else
 			remove();
 	}
 
-	protected void setParent (Group parent) {
-		super.setParent(parent);
-		if (parent == null) {
-			Stage stage = getStage();
-			if (stage != null) {
-				Actor actor = stage.getKeyboardFocus();
-				if (actor == this || actor == null) stage.setKeyboardFocus(previousKeyboardFocus);
-				actor = stage.getScrollFocus();
-				if (actor == this || actor == null) stage.setScrollFocus(previousScrollFocus);
-			}
-		}
+	/** Hides the dialog. Called automatically when a button is clicked. The default implementation fades out the dialog over 400
+	 * milliseconds. */
+	public void hide () {
+		hide(fadeOut(0.4f, Interpolation.fade));
 	}
 
 	public void setObject (Actor actor, Object object) {
@@ -223,9 +257,14 @@ public class Dialog extends Window {
 		addListener(new InputListener() {
 			public boolean keyDown (InputEvent event, int keycode2) {
 				if (keycode == keycode2) {
-					result(object);
-					if (!cancelHide) hide();
-					cancelHide = false;
+					// Delay a frame to eat the keyTyped event.
+					Gdx.app.postRunnable(new Runnable() {
+						public void run () {
+							result(object);
+							if (!cancelHide) hide();
+							cancelHide = false;
+						}
+					});
 				}
 				return false;
 			}

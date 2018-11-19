@@ -127,11 +127,16 @@ public class InputEvent extends Event {
 		return actorCoords;
 	}
 
+	/** Returns true of this event is a touchUp triggered by {@link Stage#cancelTouchFocus()}. */
+	public boolean isTouchFocusCancel () {
+		return stageX == Integer.MIN_VALUE || stageY == Integer.MIN_VALUE;
+	}
+
 	public String toString () {
 		return type.toString();
 	}
 
-	/** Types of low-level input events supported by stage2d. */
+	/** Types of low-level input events supported by scene2d. */
 	static public enum Type {
 		/** A new touch for a pointer on the stage was detected */
 		touchDown,

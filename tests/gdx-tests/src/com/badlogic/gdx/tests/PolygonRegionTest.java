@@ -13,14 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
+
 package com.badlogic.gdx.tests;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL10;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.PolygonRegion;
+import com.badlogic.gdx.graphics.g2d.PolygonRegionLoader;
 import com.badlogic.gdx.graphics.g2d.PolygonSpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
@@ -31,10 +33,6 @@ import com.badlogic.gdx.tests.utils.GdxTest;
 import com.badlogic.gdx.utils.Disposable;
 
 public class PolygonRegionTest extends GdxTest {
-	@Override
-	public boolean needsGL20 () {
-		return false;
-	}
 
 	PolygonSpriteBatch batch;
 	PolygonRegionDebugRenderer debugRenderer;
@@ -49,10 +47,12 @@ public class PolygonRegionTest extends GdxTest {
 	@Override
 	public void create () {
 		texture = new Texture(Gdx.files.internal("data/tree.png"));
-		region = new PolygonRegion(new TextureRegion(texture), Gdx.files.internal("data/tree.psh"));
-		
+
+		PolygonRegionLoader loader = new PolygonRegionLoader();
+		region = loader.load(new TextureRegion(texture), Gdx.files.internal("data/tree.psh"));
+
 		// create a region from an arbitrary set of vertices (a triangle in this case)
-		region2 = new PolygonRegion(new TextureRegion(texture), new float[] {0,0,100,100,0,100});
+		region2 = new PolygonRegion(new TextureRegion(texture), new float[] {0, 0, 100, 100, 0, 100}, new short[] {0, 1, 2});
 
 		camera = new OrthographicCamera(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 		camera.position.x = 0;
@@ -70,15 +70,13 @@ public class PolygonRegionTest extends GdxTest {
 		camera.viewportHeight = height;
 		camera.update();
 	}
-	
+
 	@Override
 	public void render () {
-		GL10 gl = Gdx.gl10;
-
-		Gdx.gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
+		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		Gdx.gl.glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
 
-		camera.apply(Gdx.gl10);
+		camera.update();
 		batch.setProjectionMatrix(camera.combined);
 
 		batch.begin();
@@ -113,8 +111,9 @@ public class PolygonRegionTest extends GdxTest {
 		public void draw (PolygonRegion region, float x, float y, float originX, float originY, float width, float height,
 			float scaleX, float scaleY, float rotation) {
 
-			float[] localVertices = region.getLocalVertices();
-			float[] texCoords = region.getTextureCoords();
+			float[] vertices = region.getVertices();
+			short[] triangles = region.getTriangles();
+			float[] textureCoords = region.getTextureCoords();
 
 			// bottom left and top right corner points relative to origin
 			final float worldOriginX = x + originX;
@@ -130,13 +129,16 @@ public class PolygonRegionTest extends GdxTest {
 			renderer.setColor(Color.RED);
 			renderer.begin(ShapeType.Line);
 
-			for (int i = 0; i < localVertices.length; i += 6) {
-				fx1 = localVertices[i] * sX;
-				fy1 = localVertices[i + 1] * sY;
-				fx2 = localVertices[i + 2] * sX;
-				fy2 = localVertices[i + 3] * sY;
-				fx3 = localVertices[i + 4] * sX;
-				fy3 = localVertices[i + 5] * sY;
+			for (int i = 0, n = triangles.length; i < n; i += 3) {
+				int p1 = triangles[i] * 2;
+				int p2 = triangles[i + 1] * 2;
+				int p3 = triangles[i + 2] * 2;
+				fx1 = vertices[p1] * sX;
+				fy1 = vertices[p1 + 1] * sY;
+				fx2 = vertices[p2] * sX;
+				fy2 = vertices[p2 + 1] * sY;
+				fx3 = vertices[p3] * sX;
+				fy3 = vertices[p3 + 1] * sY;
 
 				fx1 -= originX;
 				fy1 -= originY;

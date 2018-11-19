@@ -71,11 +71,11 @@ public class AntScriptGenerator {
 
 		// copy jni headers
 		copyJniHeaders(config.jniDir.path());
-		
+
 		// copy memcpy_wrap.c, needed if your build platform uses the latest glibc, e.g. Ubuntu 12.10
-		if(config.jniDir.child("memcpy_wrap.c").exists() == false) {
-			new FileDescriptor("com/badlogic/gdx/jnigen/resources/scripts/memcpy_wrap.c", FileType.Classpath).copyTo(
-				config.jniDir.child("memcpy_wrap.c"));
+		if (config.jniDir.child("memcpy_wrap.c").exists() == false) {
+			new FileDescriptor("com/badlogic/gdx/jnigen/resources/scripts/memcpy_wrap.c", FileType.Classpath).copyTo(config.jniDir
+				.child("memcpy_wrap.c"));
 		}
 
 		ArrayList<String> buildFiles = new ArrayList<String>();
@@ -100,18 +100,25 @@ public class AntScriptGenerator {
 			if (!target.excludeFromMasterBuildFile) {
 				if (target.os != TargetOs.MacOsX && target.os != TargetOs.IOS) {
 					buildFiles.add(buildFileName);
-				} 
-				sharedLibFiles.add(getSharedLibFilename(target.os, target.is64Bit, config.sharedLibName));
-				libsDirs.add("../" + libsDir.path().replace('\\', '/'));
+				}
+
+				String sharedLibFilename = target.libName;
+				if (sharedLibFilename == null)
+					sharedLibFilename = getSharedLibFilename(target.os, target.is64Bit, config.sharedLibName);
+				
+				sharedLibFiles.add(sharedLibFilename);
+				if (target.os != TargetOs.Android && target.os != TargetOs.IOS) {
+					libsDirs.add("../" + libsDir.path().replace('\\', '/'));
+				}
 			}
 		}
 
 		// generate the master build script
 		String template = new FileDescriptor("com/badlogic/gdx/jnigen/resources/scripts/build.xml.template", FileType.Classpath)
 			.readString();
-		StringBuffer clean = new StringBuffer();
-		StringBuffer compile = new StringBuffer();
-		StringBuffer pack = new StringBuffer();
+		StringBuilder clean = new StringBuilder();
+		StringBuilder compile = new StringBuilder();
+		StringBuilder pack = new StringBuilder();
 
 		for (int i = 0; i < buildFiles.size(); i++) {
 			clean.append("\t\t<ant antfile=\"" + buildFiles.get(i) + "\" target=\"clean\"/>\n");
@@ -120,10 +127,10 @@ public class AntScriptGenerator {
 		for (int i = 0; i < libsDirs.size(); i++) {
 			pack.append("\t\t\t<fileset dir=\"" + libsDirs.get(i) + "\" includes=\"" + sharedLibFiles.get(i) + "\"/>\n");
 		}
-		
-		if(config.sharedLibs != null) {
-			for(String sharedLib: config.sharedLibs) {
-				pack.append("\t\t\t<fileset dir=\"" + sharedLib+ "\"/>\n");
+
+		if (config.sharedLibs != null) {
+			for (String sharedLib : config.sharedLibs) {
+				pack.append("\t\t\t<fileset dir=\"" + sharedLib + "\"/>\n");
 			}
 		}
 
@@ -162,7 +169,7 @@ public class AntScriptGenerator {
 		}
 		if (os == TargetOs.MacOsX) {
 			libPrefix = "lib";
-			libSuffix = ".dylib";
+			libSuffix = (is64Bit ? "64" : "") + ".dylib";
 		}
 		if (os == TargetOs.IOS) {
 			libPrefix = "lib";
@@ -179,7 +186,9 @@ public class AntScriptGenerator {
 	}
 
 	private String getLibsDirectory (BuildConfig config, BuildTarget target) {
-		return config.libsDir.child(target.os.toString().toLowerCase() + (target.is64Bit ? "64" : "32")).path().replace('\\', '/');
+		String targetName = target.osFileName;
+		if (targetName == null) targetName = target.os.toString().toLowerCase() + (target.is64Bit ? "64" : "32");
+		return config.libsDir.child(targetName).path().replace('\\', '/');
 	}
 
 	private String generateBuildTargetTemplate (BuildConfig config, BuildTarget target) {
@@ -195,49 +204,51 @@ public class AntScriptGenerator {
 
 		// read template file from resources
 		String template = null;
-		if(target.os == TargetOs.IOS) {
-			template = new FileDescriptor("com/badlogic/gdx/jnigen/resources/scripts/build-ios.xml.template",
-			FileType.Classpath).readString();
+		if (target.os == TargetOs.IOS) {
+			template = new FileDescriptor("com/badlogic/gdx/jnigen/resources/scripts/build-ios.xml.template", FileType.Classpath)
+				.readString();
 		} else {
-			template = new FileDescriptor("com/badlogic/gdx/jnigen/resources/scripts/build-target.xml.template",
-				FileType.Classpath).readString();
+			template = new FileDescriptor("com/badlogic/gdx/jnigen/resources/scripts/build-target.xml.template", FileType.Classpath)
+				.readString();
 		}
 
 		// generate shared lib filename and jni platform headers directory name
-		String libName = getSharedLibFilename(target.os, target.is64Bit, config.sharedLibName);
+		String libName = target.libName;
+		if (libName == null) libName = getSharedLibFilename(target.os, target.is64Bit, config.sharedLibName);
 		String jniPlatform = getJniPlatform(target.os);
-
 
 		// generate include and exclude fileset Ant description for C/C++
 		// append memcpy_wrap.c to list of files to be build
-		StringBuffer cIncludes = new StringBuffer();
+		StringBuilder cIncludes = new StringBuilder();
 		cIncludes.append("\t\t<include name=\"memcpy_wrap.c\"/>\n");
 		for (String cInclude : target.cIncludes) {
 			cIncludes.append("\t\t<include name=\"" + cInclude + "\"/>\n");
 		}
-		StringBuffer cppIncludes = new StringBuffer();
+		StringBuilder cppIncludes = new StringBuilder();
 		for (String cppInclude : target.cppIncludes) {
 			cppIncludes.append("\t\t<include name=\"" + cppInclude + "\"/>\n");
 		}
-		StringBuffer cExcludes = new StringBuffer();
+		StringBuilder cExcludes = new StringBuilder();
 		for (String cExclude : target.cExcludes) {
 			cExcludes.append("\t\t<exclude name=\"" + cExclude + "\"/>\n");
 		}
-		StringBuffer cppExcludes = new StringBuffer();
+		StringBuilder cppExcludes = new StringBuilder();
 		for (String cppExclude : target.cppExcludes) {
 			cppExcludes.append("\t\t<exclude name=\"" + cppExclude + "\"/>\n");
 		}
 
 		// generate C/C++ header directories
-		StringBuffer headerDirs = new StringBuffer();
+		StringBuilder headerDirs = new StringBuilder();
 		for (String headerDir : target.headerDirs) {
 			headerDirs.append("\t\t\t<arg value=\"-I" + headerDir + "\"/>\n");
 		}
 
+		String targetFolder = target.osFileName;
+		if (targetFolder == null) targetFolder = target.os.toString().toLowerCase() + (target.is64Bit ? "64" : "32");
+
 		// replace template vars with proper values
 		template = template.replace("%projectName%", config.sharedLibName + "-" + target.os + "-" + (target.is64Bit ? "64" : "32"));
-		template = template.replace("%buildDir%",
-			config.buildDir.child(target.os.toString().toLowerCase() + (target.is64Bit ? "64" : "32")).path().replace('\\', '/'));
+		template = template.replace("%buildDir%", config.buildDir.child(targetFolder).path().replace('\\', '/'));
 		template = template.replace("%libsDir%", "../" + getLibsDirectory(config, target));
 		template = template.replace("%libName%", libName);
 		template = template.replace("%jniPlatform%", jniPlatform);

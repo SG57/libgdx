@@ -29,7 +29,7 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
  * @see GestureDetector
  * @author Nathan Sweet */
 public class ActorGestureListener implements EventListener {
-	static final Vector2 tmpCoords = new Vector2();
+	static final Vector2 tmpCoords = new Vector2(), tmpCoords2 = new Vector2();
 
 	private final GestureDetector detector;
 	InputEvent event;
@@ -58,11 +58,15 @@ public class ActorGestureListener implements EventListener {
 			}
 
 			public boolean fling (float velocityX, float velocityY, int button) {
-				ActorGestureListener.this.fling(event, velocityX, velocityY, button);
+				stageToLocalAmount(tmpCoords.set(velocityX, velocityY));
+				ActorGestureListener.this.fling(event, tmpCoords.x, tmpCoords.y, button);
 				return true;
 			}
 
 			public boolean pan (float stageX, float stageY, float deltaX, float deltaY) {
+				stageToLocalAmount(tmpCoords.set(deltaX, deltaY));
+				deltaX = tmpCoords.x;
+				deltaY = tmpCoords.y;
 				actor.stageToLocalCoordinates(tmpCoords.set(stageX, stageY));
 				ActorGestureListener.this.pan(event, tmpCoords.x, tmpCoords.y, deltaX, deltaY);
 				return true;
@@ -82,6 +86,11 @@ public class ActorGestureListener implements EventListener {
 				ActorGestureListener.this.pinch(event, initialPointer1, initialPointer2, pointer1, pointer2);
 				return true;
 			}
+
+			private void stageToLocalAmount (Vector2 amount) {
+				actor.stageToLocalCoordinates(amount);
+				amount.sub(actor.stageToLocalCoordinates(tmpCoords2.set(0, 0)));
+			}
 		});
 	}
 
@@ -98,6 +107,10 @@ public class ActorGestureListener implements EventListener {
 			touchDown(event, tmpCoords.x, tmpCoords.y, event.getPointer(), event.getButton());
 			return true;
 		case touchUp:
+			if (event.isTouchFocusCancel()) {
+				detector.reset();
+				return false;
+			}
 			this.event = event;
 			actor = event.getListenerActor();
 			detector.touchUp(event.getStageX(), event.getStageY(), event.getPointer(), event.getButton());
@@ -122,8 +135,8 @@ public class ActorGestureListener implements EventListener {
 	public void tap (InputEvent event, float x, float y, int count, int button) {
 	}
 
-	/** If true is returned, additional gestures will not be triggered. No event is provided because this event is triggered by time
-	 * passing, not by an InputEvent. */
+	/** If true is returned, additional gestures will not be triggered. No event is provided because this event is triggered by
+	 * time passing, not by an InputEvent. */
 	public boolean longPress (Actor actor, float x, float y) {
 		return false;
 	}

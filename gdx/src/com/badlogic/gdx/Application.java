@@ -30,10 +30,10 @@ import com.badlogic.gdx.utils.Clipboard;
  * <li>a desktop application (see <code>JglfwApplication</code> found in gdx-backends-jglfw.jar)</li>
  * <li>an Android application (see <code>AndroidApplication</code> found in gdx-backends-android.jar)</li>
  * <li>a HTML5 application (see <code>GwtApplication</code> found in gdx-backends-gwt.jar)</li>
- * <li>an iOS application (see <code>IOSApplication</code> found in gdx-backends-iosmonotouch.jar)</li>
+ * <li>an iOS application (see <code>IOSApplication</code> found in gdx-backends-robovm.jar)</li>
  * </ul>
- * Each application class has it's own startup and
- * initialization methods. Please refer to their documentation for more information.
+ * Each application class has it's own startup and initialization methods. Please refer to their documentation for more
+ * information.
  * </p>
  * 
  * <p>
@@ -52,9 +52,9 @@ import com.badlogic.gdx.utils.Clipboard;
  * </p>
  * 
  * <p>
- * {@link Graphics} offers you various methods to output visuals to the screen. This is achieved via OpenGL ES 1.0, 1.1 or 2.0
- * depending on what's available an the platform. On the desktop the features of OpenGL ES 2.0 are emulated via desktop OpenGL. On
- * Android the functionality of the Java OpenGL ES bindings is used.
+ * {@link Graphics} offers you various methods to output visuals to the screen. This is achieved via OpenGL ES 2.0 or 3.0
+ * depending on what's available an the platform. On the desktop the features of OpenGL ES 2.0 and 3.0 are emulated via desktop
+ * OpenGL. On Android the functionality of the Java OpenGL ES bindings is used.
  * </p>
  * 
  * <p>
@@ -73,8 +73,8 @@ import com.badlogic.gdx.utils.Clipboard;
  * your application. On Android internal files are equivalent to assets. On the desktop the classpath is first scanned for the
  * specified file. If that fails then the root directory of your application is used for a look up. External files are resources
  * you create in your application and write to an external storage. On Android external files reside on the SD-card, on the
- * desktop external files are written to a users home directory. If you know what you are doing you can also specify absolute file names.
- * Absolute filenames are not portable, so take great care when using this feature.
+ * desktop external files are written to a users home directory. If you know what you are doing you can also specify absolute file
+ * names. Absolute filenames are not portable, so take great care when using this feature.
  * </p>
  * 
  * <p>
@@ -99,7 +99,7 @@ public interface Application {
 	 * 
 	 * @author mzechner */
 	public enum ApplicationType {
-		Android, Desktop, Applet, WebGL, iOS
+		Android, Desktop, HeadlessDesktop, Applet, WebGL, iOS
 	}
 
 	public static final int LOG_NONE = 0;
@@ -107,9 +107,9 @@ public interface Application {
 	public static final int LOG_INFO = 2;
 	public static final int LOG_ERROR = 1;
 
-	/** @return the {@link ApplicationListener} instance */ 
+	/** @return the {@link ApplicationListener} instance */
 	public ApplicationListener getApplicationListener ();
-	
+
 	/** @return the {@link Graphics} instance */
 	public Graphics getGraphics ();
 
@@ -129,7 +129,7 @@ public interface Application {
 	public void log (String tag, String message);
 
 	/** Logs a message to the console or logcat */
-	public void log (String tag, String message, Exception exception);
+	public void log (String tag, String message, Throwable exception);
 
 	/** Logs an error message to the console or logcat */
 	public void error (String tag, String message);
@@ -148,10 +148,19 @@ public interface Application {
 	 * @param logLevel {@link #LOG_NONE}, {@link #LOG_ERROR}, {@link #LOG_INFO}, {@link #LOG_DEBUG}. */
 	public void setLogLevel (int logLevel);
 
+	/** Gets the log level. */
+	public int getLogLevel ();
+
+	/** Sets the current Application logger. Calls to {@link #log(String, String)} are delegated to this {@link ApplicationLogger} */
+	public void setApplicationLogger (ApplicationLogger applicationLogger);
+
+	/** @return the current {@link ApplicationLogger} */
+	public ApplicationLogger getApplicationLogger ();
+
 	/** @return what {@link ApplicationType} this application has, e.g. Android or Desktop */
 	public ApplicationType getType ();
 
-	/** @return the Android API level on Android or 0 on the desktop. */
+	/** @return the Android API level on Android, the major OS version on iOS (5, 6, 7, ..), or 0 on the desktop. */
 	public int getVersion ();
 
 	/** @return the Java heap memory use in bytes */
@@ -169,25 +178,26 @@ public interface Application {
 
 	/** Posts a {@link Runnable} on the main loop thread.
 	 * 
+	 * In a multi-window application, the {@linkplain Gdx#graphics} and {@linkplain Gdx#input} values may be
+	 * unpredictable at the time the Runnable is executed. If graphics or input are needed, they can be copied
+	 * to a variable to be used in the Runnable. For example:
+	 * <p><code>
+	 * final Graphics graphics = Gdx.graphics;
+	 * 
 	 * @param runnable the runnable. */
 	public void postRunnable (Runnable runnable);
 
-	/** Schedule an exit from the application. On android, this will cause a call to pause() and dispose() some time in the future, it will not
-	 * immediately finish your application. */
+	/** Schedule an exit from the application. On android, this will cause a call to pause() and dispose() some time in the future,
+	 * it will not immediately finish your application.
+	 * On iOS this should be avoided in production as it breaks Apples guidelines*/
 	public void exit ();
-	
-	/**
-	 * Adds a new {@link LifecycleListener} to the application. This can be
-	 * used by extensions to hook into the lifecycle more easily. The
-	 * {@link ApplicationListener} methods are sufficient for application
-	 * level development.
-	 * @param listener
-	 */
-	public void addLifecycleListener(LifecycleListener listener);
-	
-	/**
-	 * Removes the {@link LifecycleListener}.
-	 * @param listener
-	 */
-	public void removeLifecycleListener(LifecycleListener listener);
+
+	/** Adds a new {@link LifecycleListener} to the application. This can be used by extensions to hook into the lifecycle more
+	 * easily. The {@link ApplicationListener} methods are sufficient for application level development.
+	 * @param listener */
+	public void addLifecycleListener (LifecycleListener listener);
+
+	/** Removes the {@link LifecycleListener}.
+	 * @param listener */
+	public void removeLifecycleListener (LifecycleListener listener);
 }
