@@ -19,7 +19,7 @@ package com.badlogic.gdx.utils;
 /** A simple linked list that pools its nodes.
  * @author mzechner */
 public class PooledLinkedList<T> {
-	static final class Item<T> {
+	public static final class Item<T> {
 		public T payload;
 		public Item<T> next;
 		public Item<T> prev;
@@ -134,6 +134,36 @@ public class PooledLinkedList<T> {
 		p.next = n;
 		n.prev = p;
 	}
+
+// public static void main (String[] argv) {
+// PooledLinkedList<Integer> list = new PooledLinkedList<Integer>(10);
+//
+// list.add(1);
+// list.add(2);
+// list.add(3);
+// list.add(4);
+// list.iter();
+// list.next();
+// list.next();
+// list.remove();
+// list.next();
+// list.next();
+// list.remove();
+//
+// list.iter();
+// Integer v = null;
+// while ((v = list.next()) != null)
+// System.out.println(v);
+//
+// list.iter();
+// list.next();
+// list.next();
+// list.remove();
+//
+// list.iter();
+// list.next();
+// list.remove();
+// }
 
 	public void clear () {
 		iter();
