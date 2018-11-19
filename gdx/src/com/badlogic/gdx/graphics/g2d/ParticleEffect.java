@@ -43,7 +43,10 @@ public class ParticleEffect implements Disposable {
 	protected float motionScale = 1f;
 
 	public ParticleEffect () {
-		emitters = new Array(8);
+		this (8);
+	}
+	public ParticleEffect(int length) {
+		emitters = new Array<ParticleEmitter>(length);
 	}
 
 	public ParticleEffect (ParticleEffect effect) {
