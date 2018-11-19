@@ -17,13 +17,13 @@
 subprojects {
     apply plugin: "java"
 
-    sourceCompatibility = 1.6
-    targetCompatibility = 1.6
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
     sourceSets.main.java.srcDirs = ["src"]
     sourceSets.main.resources.srcDirs = ["src"]
 
 
     dependencies {
-        compile project(":gdx")
+        implementation project(":gdx")
     }
 }

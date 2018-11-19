@@ -19,10 +19,10 @@ ext {
 }
 
 dependencies {
-    compile project(":tests:gdx-tests")
-    compile project(":backends:gdx-backend-lwjgl")
-    compile project(":extensions:gdx-controllers:gdx-controllers-desktop")
-    compile testnatives.desktop
+    implementation project(":tests:gdx-tests")
+    implementation project(":backends:gdx-backend-lwjgl")
+    implementation project(":extensions:gdx-controllers:gdx-controllers-desktop")
+    implementation testnatives.desktop
 }
 
 task launchTestsLwjgl (dependsOn: classes, type: JavaExec) {

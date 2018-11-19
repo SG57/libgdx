@@ -15,7 +15,7 @@
  ******************************************************************************/
 
 dependencies {
-    compile libraries.gwt
+    implementation libraries.gwt
 }
 
 sourceSets.main.java.exclude "**/System.java"

@@ -15,5 +15,5 @@
  ******************************************************************************/
 
 dependencies {
-    compile libraries.robovm
+    implementation libraries.robovm
 }

@@ -15,11 +15,11 @@
  ******************************************************************************/
 
 dependencies {
-    compile project(":gdx")
-    compile project(":backends:gdx-backend-lwjgl")
-    compile project(":extensions:gdx-freetype")
-    compile project(":backends:gdx-backend-headless")
-    compile testnatives.desktop
+    implementation project(":gdx")
+    implementation project(":backends:gdx-backend-lwjgl")
+    implementation project(":extensions:gdx-freetype")
+    implementation project(":backends:gdx-backend-headless")
+    implementation testnatives.desktop
 }
 
 sourceSets.main.resources.srcDirs = ["assets"]

@@ -15,7 +15,8 @@
  ******************************************************************************/
 
 dependencies {
-    compile libraries.lwjgl
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation libraries.lwjgl
 }
 
 
