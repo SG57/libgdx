@@ -954,7 +954,7 @@ public class ParticleEmitter {
 		return bounds;
 	}
 
-	protected RangedNumericValue[] getXSizeValues () {
+	public RangedNumericValue[] getXSizeValues () {
 		if (xSizeValues == null) {
 			xSizeValues = new RangedNumericValue[3];
 			xSizeValues[0] = xScaleValue;
@@ -964,7 +964,7 @@ public class ParticleEmitter {
 		return xSizeValues;
 	}
 
-	protected RangedNumericValue[] getYSizeValues () {
+	public RangedNumericValue[] getYSizeValues () {
 		if (ySizeValues == null) {
 			ySizeValues = new RangedNumericValue[3];
 			ySizeValues[0] = yScaleValue;
@@ -974,7 +974,7 @@ public class ParticleEmitter {
 		return ySizeValues;
 	}
 
-	protected RangedNumericValue[] getMotionValues () {
+	public RangedNumericValue[] getMotionValues () {
 		if (motionValues == null) {
 			motionValues = new RangedNumericValue[3];
 			motionValues[0] = velocityValue;
