@@ -438,7 +438,7 @@ public abstract class BaseTmxMapLoader<P extends AssetLoaderParameters<TiledMap>
 		return b & 0xFF;
 	}
 
-	protected static FileHandle getRelativeFileHandle (FileHandle file, String path) {
+	public static FileHandle getRelativeFileHandle (FileHandle file, String path) {
 		StringTokenizer tokenizer = new StringTokenizer(path, "\\/");
 		FileHandle result = file.parent();
 		while (tokenizer.hasMoreElements()) {
