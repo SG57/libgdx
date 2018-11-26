@@ -480,6 +480,21 @@ public class GlyphLayout implements Poolable {
 		height = 0;
 	}
 
+	public void setColor(Color color) {
+		for (GlyphRun run : runs)
+			run.color.set(color);
+	}
+
+	public void setColor(float r, float g, float b, float a) {
+        for (GlyphRun run : runs)
+            run.color.set(r, g, b, a);
+    }
+
+    public void setColor(int rgba) {
+        for (GlyphRun run : runs)
+            run.color.set(rgba);
+    }
+
 	public String toString () {
 		if (runs.size == 0) return "";
 		StringBuilder buffer = new StringBuilder(128);
